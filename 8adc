@@ -1,0 +1,144 @@
+8.adc
+Test.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "adc.h"
+
+/**************************************** 	     
+		 MAIN
+*****************************************/
+int main(int argc, char **argv, char **envp)
+{
+	int digital_val;
+	struct adc_config_t adc_desc;
+	float analog_val;
+	
+	adc_desc.adc_mode = ONESHOT;
+	adc_desc.capture  = 0;
+	adc_desc.buff_length = 100;
+	adc_desc.adc_channel = atoi(argv[1]);
+	printf("\n   *** ADC TESTING UTILITY ***   \n");
+
+	adc_init(&adc_desc);
+	adc_set_channel(&adc_desc, adc_desc.adc_channel);
+
+	while (1)
+	{
+		digital_val = adc_output(&adc_desc, adc_desc.adc_channel);
+		analog_val = (digital_val * 0.805664062)/4095;
+
+		printf("Digital Value on Channel %d = %d\n", adc_desc.adc_channel, digital_val);
+		printf("Analog Value on Channel %d = %f\n", adc_desc.adc_channel, analog_val);
+		sleep(1);
+	}
+
+	return 0;
+}
+
+ADC.h
+#ifndef _ADC_H
+#define _ADC_H
+#define ONESHOT "oneshot"
+#define CONTINUOUS "continuous"
+struct adc_config_t
+char *adc_mode;				
+/* ADC mode - oneshot or continuous*/
+int capture;				
+/* 1 - Enable buffer 0 - disable buffer */
+unsigned int buff_length;   /* buffer length */
+int adc_channel;			
+/* ADC channel to use (0-7) */
+        unsigned char buf[100];	
+};
+
+/* Below Functions used in ADC - Library/Test-Program */
+int adc_init(struct adc_config_t *);
+int adc_set_channel(struct adc_config_t *, int);
+int adc_output(struct adc_config_t *, int);
+#endif
+
+ADC.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "adc.h"
+/* ADC - Initialization */
+int adc_init(struct adc_config_t *adc_desc)
+{
+/* Set ADC mode */
+int mode_fd;
+//mode_fd = open("/sys/bus/iio/devices/iio:device0/in_conversion_mode", O_WRONLY);
+//write(mode_fd, (char *)adc_desc->adc_mode, 10);
+//close(mode_fd);
+/* ADC - Enable or disable buffer */
+int capture_fd;
+//capture_fd  = open("/sys/bus/iio/devices/iio:device0/buffer/enable", O_WRONLY);
+capture_fd  = open("/sys/bus/iio/devices/iio:device0/buffer/enable", O_WRONLY);
+if(capture_fd < 0 )
+{
+perror("open buffer enable error");
+}
+if(adc_desc->capture)
+write(capture_fd, "1", 2);
+else
+write(capture_fd, "0", 2);
+close(capture_fd);
+/* ADC - SET BUFFER LENGTH */
+int length_fd;
+//length_fd  = open("/sys/bus/iio/devices/iio:device0/buffer/length", O_WRONLY);
+ length_fd  = open("/sys/bus/iio/devices/iio:device0/buffer/length", O_WRONLY);
+if(length_fd < 0 )
+{
+perror("open buffer length error");
+}
+snprintf(adc_desc->buf, sizeof(adc_desc->buff_length), "%d", adc_desc->buff_length);
+write(length_fd, adc_desc->buf, strlen(adc_desc->buf));
+close(length_fd);
+return 0;
+}
+
+/* ADC - SET CHANNEL */
+int adc_set_channel(struct adc_config_t *adc_desc, int channel)
+{
+int channel_fd;
+
+//sprintf(adc_desc->buf, "/sys/bus/iio/devices/iio:device0/scan_elements/in_voltage%d_en", channel);
+  sprintf(adc_desc->buf, "/sys/bus/iio/devices/iio:device0/scan_elements/in_voltage%d_en", channel);
+
+channel_fd  = open(adc_desc->buf, O_WRONLY);
+if(channel_fd < 0 )
+{
+perror("open scan_elements/in_voltage6_en error");
+}
+write(channel_fd, "1", 2);
+close(channel_fd);
+return 0;
+}
+
+/* ADC - READ OUTPUT DATA */
+int adc_output(struct adc_config_t *adc_desc, int channel)
+{
+int output_fd, adc_data;
+char result[10], ret=0;
+
+//sprintf(adc_desc->buf, "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", channel);
+  sprintf(adc_desc->buf, "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", channel);
+
+output_fd  = open(adc_desc->buf, O_RDONLY);
+if(output_fd < 0 )
+{
+perror("open in_voltage6_raw   error");
+}
+ret = read(output_fd, result, sizeof(result));
+adc_data = atoi(result);
+close(output_fd);
+return adc_data;
+}
+
