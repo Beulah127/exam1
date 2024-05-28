@@ -1,0 +1,145 @@
+10.sercli
+EchoServer:
+server.h
+
+#ifndef SERVER_H
+#define SERVER_H
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+int create_server_socket();
+void bind_server_socket(int server_sockfd, int port);
+void listen_for_connections(int server_sockfd);
+int accept_client_connection(int server_sockfd, struct sockaddr_in *client_addr);
+void handle_client_connection(int client_sockfd);
+
+#endif // SERVER_H
+
+
+server.c
+#include "server.h"
+int create_server_socket() {
+    return socket(AF_INET, SOCK_STREAM, 0);
+}
+
+void bind_server_socket(int server_sockfd, int port) {
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    inet_aton("130.0.12.164", &server_addr.sin_addr);
+    memset(&(server_addr.sin_zero), '\0', sizeof server_addr.sin_zero);
+    bind(server_sockfd, (struct sockaddr*)&server_addr, sizeof server_addr);
+}
+
+void listen_for_connections(int server_sockfd) {
+    listen(server_sockfd, 10);
+}
+
+int accept_client_connection(int server_sockfd, struct sockaddr_in *client_addr) {
+    int client_sockfd;
+    int client_len = sizeof *client_addr;
+    client_sockfd = accept(server_sockfd, (struct sockaddr*)client_addr, &client_len);
+    return client_sockfd;
+}
+
+void handle_client_connection(int client_sockfd) {
+    char buf[100];
+    int rv;
+    while ((rv = read(client_sockfd, buf, sizeof buf)) > 0)
+        write(client_sockfd, buf, rv);
+    close(client_sockfd);
+}
+
+
+main.c
+
+#include "server.h"
+int main() {
+    int server_sockfd;
+    int client_sockfd;
+    struct sockaddr_in client_addr;
+
+    server_sockfd = create_server_socket();
+    bind_server_socket(server_sockfd, 54154);
+    listen_for_connections(server_sockfd);
+    while (1) {
+        fprintf(stderr, "\nServer waiting for client connection...");
+        client_sockfd = accept_client_connection(server_sockfd, &client_addr);
+        fprintf(stderr, "\n********* CLIENT CONNECTION ESTABLISHED ********");
+        handle_client_connection(client_sockfd);
+        fprintf(stderr, "\n********* CLIENT CONNECTION TERMINATED ********");
+    }
+
+    return 0;
+}
+
+
+Echoclient:
+Main.c
+#include “client.h”
+Int main(int argc, char** argv) {
+    If (argc != 3) {
+        Printf(“Must enter IP and port\n”);
+        Exit(1);
+    }
+
+    Int sockfd = create_socket(argv[1], argv[2]);
+    Client_loop(sockfd);
+    Close(sockfd);
+    Exit(0);
+}
+
+Client.h
+#ifndef CLIENT_H
+#define CLIENT_H
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+Int create_socket(const char *ip, const char *port);
+Void client_loop(int sockfd);
+#endif
+
+Client.c
+#include “client.h”
+Int create_socket(const char *ip, const char *port) {
+    Int sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    If (sockfd == -1) {
+        Perror(“socket”);
+        Exit(1);
+    }
+    Struct sockaddr_in dest_addr;
+    Dest_addr.sin_family = AF_INET;
+    Dest_addr.sin_port = htons(atoi(port));
+    Inet_aton(ip, &dest_addr.sin_addr);
+    Memset(&(dest_addr.sin_zero), ‘\0’, sizeof dest_addr.sin_zero);
+    If (connect(sockfd, (struct sockaddr*)&dest_addr, sizeof dest_addr) == -1) {
+        Perror(“connect”);
+        Exit(1);
+    }
+    Return sockfd;
+}
+Void client_loop(int sockfd) {
+    Char buff1[128], buff2[128];
+    While (1) {
+        Int n = read(0, buff1, sizeof buff1);
+        Buff1[n] = ‘\0’;
+        Write(sockfd, buff1, strlen(buff1));
+        N = read(sockfd, buff2, sizeof buff2);
+        Buff2[n] = ‘\0’;
+        Write(1, buff2, n);
+    }
+}
