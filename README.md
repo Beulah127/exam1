@@ -1,64 +1,33 @@
-1.blink.c
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>	
-#include<stdio.h>
-#include<string.h>  
-#include<stdlib.h>
-#define GPIO_EN  "/sys/class/gpio/export"
-#define GPIO_DIR "/sys/class/gpio/PC13/direction"
-#define GPIO_Val "/sys/class/gpio/PC13/value"
-int blink()
+1.led 
+led_blink
+#include "stm32f4xx.h"
+void delayMs(int n);
+void led_blink()
 {
-	int  gpio_fd;
-	char gpio_buf[30];
-	int  gpio_num = 77;
-	int  count =10;
-	gpio_fd = open(GPIO_EN,O_WRONLY);
-	if(gpio_fd < 0)
+	RCC->AHB1ENR |= 1; /* enable GPIOA clock */
+	GPIOA->MODER |= (0<<11);
+	GPIOA->MODER |= (1<<10); /* set pin to output mode */
+	while(1)
 	{
-		printf("Unable to open the file  %s\n",GPIO_EN);
-		exit(0);
+			GPIOA->ODR |= 0x00000020; /* turn on LED */
+			delayMs(500);
+			GPIOA->ODR &= ~0x00000020; /* turn off LED */
+			delayMs(500);
 	}
-	sprintf(gpio_buf,"%d",gpio_num);
-	write(gpio_fd,gpio_buf,strlen(gpio_buf));
-	close(gpio_fd);
-	gpio_fd = open(GPIO_DIR,O_WRONLY);
-	if(gpio_fd < 0)
-	{
-		printf("Unable to open the file   %s",GPIO_DIR);
-		exit(0);
-	}
-	write(gpio_fd,"out",3);
-	close(gpio_fd);
-	gpio_fd = open( GPIO_Val,O_WRONLY);
-	if(gpio_fd < 0)
-	{
-		printf("Unable to open the file   %s",GPIO_Val);
-		exit(0);
-	}
-	printf("Toggling the GPIO_PIN\n");
-	while(count--)
-	{
-		write(gpio_fd,"0" ,1);
-		sleep(2);
-		write(gpio_fd,"1" ,1);
-		sleep(2);
-	}
-	close(gpio_fd);
+}
+void delayMs(int n)
+{
+	int i;
+	for (; n > 0; n--)
+	for (i = 0; i < 3195; i++) ;
 }
 
-
-blink.h
-int blink();
-
+led_blink.h
+void led_blink();
 
 main.c
-#include<stdio.h>
-#include "blink.h"
-int main()
+#include "led_blink.h"
+void main()
 {
-	blink();
-	return 0;
+	led_blink();
 }
